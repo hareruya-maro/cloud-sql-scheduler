@@ -1,0 +1,192 @@
+name: scheduled-cloud-sql-start-stop
+version: 0.1.0
+specVersion: v1beta
+displayName: Scheduled Cloud SQL Start/Stop
+
+description: >-
+  Schedule automatic start and stop operations for your Cloud SQL instances with flexible holiday handling
+  through direct date lists or Google Calendar integration, helping optimize costs by ensuring instances
+  only run when needed.
+
+license: Apache-2.0
+
+author:
+  authorName: Your Publisher Name
+  url: https://example.com
+
+contributors:
+  - authorName: Your Name
+    email: your.email@example.com
+    url: https://github.com/yourusername
+
+billingRequired: true
+
+apis:
+  - apiName: sqladmin.googleapis.com
+    reason: To start and stop Cloud SQL instances
+  - apiName: calendar.googleapis.com
+    reason: To check for all-day events in Google Calendar for holiday skipping (optional)
+
+roles:
+  - role: cloudsql.editor
+    reason: To start and stop Cloud SQL instances
+  - role: cloudscheduler.jobRunner
+    reason: To create and run scheduled jobs
+  - role: cloudfunctions.invoker
+    reason: To invoke the extension's functions via Cloud Scheduler
+
+resources:
+  - name: startInstance
+    type: firebaseextensions.v1beta.function
+    description: >-
+      Cloud Function that starts the configured Cloud SQL instance based on the schedule,
+      checking for holidays and the current instance state before executing.
+    properties:
+      runtime: nodejs22
+      location: ${param:LOCATION}
+      schedule:
+        schedule: ${param:START_SCHEDULE_CRON}
+        timeZone: ${param:TIMEZONE}
+      taskQueueTrigger: {}
+
+  - name: stopInstance
+    type: firebaseextensions.v1beta.function
+    description: >-
+      Cloud Function that stops the configured Cloud SQL instance based on the schedule,
+      checking for holidays and the current instance state before executing.
+    properties:
+      runtime: nodejs22
+      location: ${param:LOCATION}
+      schedule:
+        schedule: ${param:STOP_SCHEDULE_CRON}
+        timeZone: ${param:TIMEZONE}
+      taskQueueTrigger: {}
+
+params:
+  - param: LOCATION
+    label: Cloud Function Location
+    description: >-
+      Where do you want to deploy the functions created for this extension?
+      You usually want to pick a location close to your database.
+    type: select
+    options:
+      - label: us-central1
+        value: us-central1
+      - label: us-east1
+        value: us-east1
+      - label: us-east4
+        value: us-east4
+      - label: europe-west1
+        value: europe-west1
+      - label: europe-west2
+        value: europe-west2
+      - label: asia-east1
+        value: asia-east1
+      - label: asia-east2
+        value: asia-east2
+      - label: asia-northeast1
+        value: asia-northeast1
+      - label: asia-northeast2
+        value: asia-northeast2
+      - label: asia-south1
+        value: asia-south1
+    default: us-central1
+    required: true
+
+  - param: PROJECT_ID
+    label: Project ID
+    description: >-
+      The Google Cloud Project ID where your Cloud SQL instance is located.
+    type: string
+    example: my-gcp-project
+    validationRegex: ^[a-z][-a-z0-9]{4,28}[a-z0-9]$
+    validationErrorMessage: Invalid Google Cloud Project ID format
+    required: true
+
+  - param: REGION
+    label: Cloud SQL Instance Region
+    description: >-
+      The region where your Cloud SQL instance is deployed.
+    type: string
+    example: us-central1
+    required: true
+
+  - param: INSTANCE_ID
+    label: Cloud SQL Instance ID
+    description: >-
+      The ID of the Cloud SQL instance you want to manage.
+    type: string
+    example: my-database-instance
+    required: true
+
+  - param: START_SCHEDULE_CRON
+    label: Start Schedule (Cron Expression)
+    description: >-
+      Cron expression for when to start the instance. Leave empty to disable automatic starting.
+      Example for weekdays at 9am: 0 9 * * 1-5
+    type: string
+    example: 0 9 * * 1-5
+    required: false
+
+  - param: STOP_SCHEDULE_CRON
+    label: Stop Schedule (Cron Expression)
+    description: >-
+      Cron expression for when to stop the instance. Leave empty to disable automatic stopping.
+      Example for weekdays at 6pm: 0 18 * * 1-5
+    type: string
+    example: 0 18 * * 1-5
+    required: false
+
+  - param: TIMEZONE
+    label: Timezone
+    description: >-
+      Timezone for interpreting the Cron schedules. See tz database for options.
+      Examples: UTC, America/New_York, Asia/Tokyo
+    type: string
+    default: UTC
+    example: Asia/Tokyo
+    required: true
+
+  - param: START_HOLIDAYS_LIST
+    label: Start Schedule Holidays (List)
+    description: >-
+      Comma-separated list of dates (YYYY-MM-DD) when the start schedule should be skipped.
+      Example: 2025-01-01,2025-12-25
+    type: string
+    example: 2025-01-01,2025-12-25
+    required: false
+
+  - param: STOP_HOLIDAYS_LIST
+    label: Stop Schedule Holidays (List)
+    description: >-
+      Comma-separated list of dates (YYYY-MM-DD) when the stop schedule should be skipped.
+      Example: 2025-01-01,2025-12-25
+    type: string
+    example: 2025-01-01,2025-12-25
+    required: false
+
+  - param: START_HOLIDAYS_CALENDAR_ID
+    label: Start Schedule Holidays (Google Calendar ID)
+    description: >-
+      Google Calendar ID to check for all-day events to skip start operations.
+      Example: your.email@gmail.com or ja.japanese#holiday@group.v.calendar.google.com
+    type: string
+    example: ja.japanese#holiday@group.v.calendar.google.com
+    required: false
+
+  - param: STOP_HOLIDAYS_CALENDAR_ID
+    label: Stop Schedule Holidays (Google Calendar ID)
+    description: >-
+      Google Calendar ID to check for all-day events to skip stop operations.
+      Example: your.email@gmail.com or ja.japanese#holiday@group.v.calendar.google.com
+    type: string
+    example: ja.japanese#holiday@group.v.calendar.google.com
+    required: false
+
+  - param: SLACK_WEBHOOK_URL
+    label: Slack Webhook URL (Optional)
+    description: >-
+      Slack Incoming Webhook URL for error notifications. Leave empty to disable Slack notifications.
+    type: string
+    example: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+    required: false
